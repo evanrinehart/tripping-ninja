@@ -1,6 +1,14 @@
 require 'parser/current'
 require 'ostruct'
 
+require 'pry'
+require 'awesome_print'
+
+require './space'
+require './meth_def'
+require './stdlib'
+
+
 name = ARGV[0]
 root_file_path = %x{gem which #{name}}.chomp
 gem_dir = File.dirname root_file_path
@@ -8,7 +16,9 @@ source_file_paths = Dir["#{gem_dir}/**/*.rb"]
 
 spec = Gem::Specification.find_by_name name
 
-$spaces = {}
+$spaces = { # address -> Space
+  [] => Space.new(:path => [], :spec => spec)
+}
 $files_scanned = {}
 
 def scan_module space, scopes, spec, node
@@ -24,38 +34,6 @@ def scan_class space, scopes, spec, node
   puts "scan class #{space.inspect}"
   node.children[2..-1].each do |c|
     scan_node space, scopes, spec, c
-  end
-end
-
-def scan_node space, scopes, spec, node
-  case node.type
-    when :module
-      inner_space, inner_scopes = read_module_space space, scopes, spec, node
-      scan_module(inner_space, inner_scopes, spec, node)
-    when :class
-      inner_space, inner_scopes = read_module_space space, scopes, spec, node
-      scan_class(inner_space, inner_scopes, spec, node)
-    when :begin
-      node.children.each do |c|
-        scan_node space, scopes, spec, c
-      end
-    when :casgn
-      my_space, name = read_lhs_name space, scopes, node
-      $spaces[my_space][:names][name] = true
-    when :send
-      if node.children[1] == :require
-        link = read_require node
-        puts "REQUIRE #{link.inspect}"
-        if !$files_scanned[link.path]
-          scan_file link.path, link.gem
-        end
-      else
-        puts "IGNORING SEND #{node.inspect}"
-      end
-    when :def
-      puts "DEF #{node.inspect}"
-    else
-      puts "IGNORING NODE #{node.type}"
   end
 end
 
@@ -97,7 +75,10 @@ def read_module_space space, scopes, spec, node
     new_space = space + [name]
     new_scopes = scopes.dup
     new_scopes[name] = new_space
-    $spaces[new_space] ||= {:gem => spec.name, :names => {}}
+    $spaces[new_space] ||= Space.new(
+      path: new_space,
+      spec: spec
+    )
     [new_space, new_scopes]
   elsif scopes[accum[0]]
     prefix = scopes[accum[0]]
@@ -136,16 +117,56 @@ def read_require node
   end
 end
 
+def scan_method space, scopes, spec, node
+  meth = MethDef.new node
+  $spaces[space].insert meth.name, meth
+  nil
+end
+
+def scan_node space, scopes, spec, node
+  case node.type
+    when :module
+      inner_space, inner_scopes = read_module_space space, scopes, spec, node
+      scan_module(inner_space, inner_scopes, spec, node)
+    when :class
+      inner_space, inner_scopes = read_module_space space, scopes, spec, node
+      scan_class(inner_space, inner_scopes, spec, node)
+    when :begin
+      node.children.each do |c|
+        scan_node space, scopes, spec, c
+      end
+    when :casgn
+      my_space, name = read_lhs_name space, scopes, node
+puts my_space.inspect
+      $spaces[my_space].insert name, true
+    when :send
+      if node.children[1] == :require
+        link = read_require node
+        if !$files_scanned[link.path]
+          scan_file link.path, link.gem
+        end
+      else
+        puts "IGNORING SEND #{node.inspect}"
+      end
+    when :def
+      scan_method space, scopes, spec, node
+    when :defs
+      scan_method space, scopes, spec, node
+    else
+      puts "IGNORING NODE #{node.type}"
+  end
+end
+
 def scan_file path, spec
   $files_scanned[path] = true
   source = IO.read path
   ast = Parser::CurrentRuby.parse source
   puts "scanfile #{path} #{ast.inspect}"
-  scan_node [], {}, spec, ast
+  scan_node [], StdLib.default_scopes, spec, ast
   puts ''
 end
 
 scan_file root_file_path, spec
 
 puts "GLOBAL SPACES"
-puts $spaces.inspect
+ap $spaces.values
