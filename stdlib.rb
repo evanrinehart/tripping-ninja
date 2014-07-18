@@ -1,5 +1,3 @@
-require './stdlib/error'
-
 module StdLib
 
   def self.all_names
