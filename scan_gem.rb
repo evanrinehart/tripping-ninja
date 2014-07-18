@@ -50,8 +50,10 @@ def scan_node space, scopes, spec, node
           scan_file link.path, link.gem
         end
       else
-        puts node.inspect
+        puts "IGNORING SEND #{node.inspect}"
       end
+    when :def
+      puts "DEF #{node.inspect}"
     else
       puts "IGNORING NODE #{node.type}"
   end
