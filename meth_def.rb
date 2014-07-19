@@ -5,14 +5,16 @@ class MethDef
   attr_reader :args
   attr_reader :star
   attr_reader :selfdot
+  attr_reader :origin # space path
 
-  def initialize ast
+  def initialize(ast:, origin:)
     if ast.type == :def
       @name = ast.children[0]
       @args = ast.children[1].children
       @star = false
       @body = ast.children[2]
       @selfdot = false
+      @origin = origin
     elsif ast.type == :defs
       @name = ast.children[1]
       @args = ast.children[2].children
@@ -27,6 +29,8 @@ class MethDef
       else
         raise "unknown syntax: defs #{ast.children[0].type}"
       end
+      @origin = origin
+    elsif ast.type == :defs
     else
       raise "unknown syntax: #{ast.type}"
     end

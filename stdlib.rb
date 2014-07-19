@@ -6,7 +6,7 @@ module StdLib
 
   def self.default_scopes
     {
-      'StandardError' => []
+      :StandardError => []
     }
   end
 

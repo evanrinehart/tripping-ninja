@@ -16,8 +16,8 @@ source_file_paths = Dir["#{gem_dir}/**/*.rb"]
 
 spec = Gem::Specification.find_by_name name
 
-$spaces = { # address -> Space
-  [] => Space.new(:path => [], :spec => spec)
+$spaces = { # path -> Space
+  [] => Space.new(:path => [], :spec => spec, :is_module => true)
 }
 $files_scanned = {}
 
@@ -77,7 +77,8 @@ def read_module_space space, scopes, spec, node
     new_scopes[name] = new_space
     $spaces[new_space] ||= Space.new(
       path: new_space,
-      spec: spec
+      spec: spec,
+      is_module: node.type == :module
     )
     [new_space, new_scopes]
   elsif scopes[accum[0]]
@@ -118,9 +119,54 @@ def read_require node
 end
 
 def scan_method space, scopes, spec, node
-  meth = MethDef.new node
+  meth = MethDef.new(ast: node, origin: space)
   $spaces[space].insert meth.name, meth
   nil
+end
+
+def scan_include space, scopes, node
+  puts "SCAN INCLUDE #{node.inspect}"
+  path = read_qualified_name(space, scopes, node.children[2])
+  puts path.inspect
+  nil
+end
+
+def read_qualified_name space, scopes, node
+  # (const nil :Foo) => [] Foo
+  # (const (const nil :Foo) :Bar) => [Foo] Bar
+puts node.inspect
+puts scopes.inspect
+puts space.inspect
+
+  name = node.children[1]
+
+  ptr = node.children[0]
+  accum = []
+  while !ptr.nil?
+    accum.unshift ptr.children[1]
+    ptr = ptr.children[0]
+  end
+
+  # [A, B, C] D
+  # either D is a space at global path [A,B,C,D]
+  # or its in scopes at global path scopes(D)
+  # [] D
+  # either D is at global path space+[D]
+  #
+
+  if accum.empty?
+    space + [name]
+  elsif scopes[accum[0]]
+    prefix = scopes[accum[0]]
+    if $spaces[prefix+accum]
+      $spaces[prefix+accum]+[name]
+    else
+      raise "namespace error"
+    end
+  else
+    raise "namespace error"
+  end
+  
 end
 
 def scan_node space, scopes, spec, node
@@ -137,7 +183,6 @@ def scan_node space, scopes, spec, node
       end
     when :casgn
       my_space, name = read_lhs_name space, scopes, node
-puts my_space.inspect
       $spaces[my_space].insert name, true
     when :send
       if node.children[1] == :require
@@ -145,6 +190,10 @@ puts my_space.inspect
         if !$files_scanned[link.path]
           scan_file link.path, link.gem
         end
+      elsif node.children[1] == :include
+        scan_include space, scopes, node
+      elsif node.children[1] == :extend
+        scan_extend space, scopes, node
       else
         puts "IGNORING SEND #{node.inspect}"
       end
