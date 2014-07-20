@@ -9,6 +9,8 @@ require './meth_def'
 require './stdlib'
 require './constant'
 
+class UnknownDefs < StandardError; end
+
 
 name = ARGV[0]
 root_file_path = %x{gem which #{name}}.chomp
@@ -103,7 +105,11 @@ def scan_space space, gem, node
   end
 
   node.children[(node.type == :module ? 1 : 2)..-1].each do |c|
-    scan_node new_space, gem, c
+    if c.nil?
+      # hmm
+    else
+      scan_node new_space, gem, c
+    end
   end
 end
 
@@ -132,7 +138,7 @@ def scan_method space, gem, node
     if node.children[0].type == :self
       static = true
     else
-      raise "unknown syntax: defs #{node.children[0].type}"
+      raise UnknownDefs, "unknown syntax: defs #{node.children[0].type}"
     end
 
     meth = MethDef.new(
@@ -221,6 +227,12 @@ def read_require node
   raw = node.children[2]
   if raw.type == :str
     arg = raw.children[0]
+    if StdLib.std_requires.include?(arg)
+      return OpenStruct.new(
+        :arg => arg,
+        :stdlib => true
+      )
+    end
     spec = Gem::Specification.find_by_path(arg)
     raise "gem #{arg} not found" if spec.nil?
     path_glob = spec.lib_dirs_glob
@@ -241,13 +253,17 @@ end
 def scan_mixin space, gem, node
   path, name = read_qualified_name node.children[2]
   mixin = lookup_path space, (path||[])+[name]
-  if !mixin.is_a?(Space) || mixin.type != :module
-    raise "mixin target #{path.inspect} #{name} is not a module"
+  if mixin.nil?
+    raise "mixin #{path.inspect} #{name} not found"
   else
-    case node.children[1]
-      when :include then space.insert_mixin mixin
-      when :extend then space.insert_static_mixin mixin 
-      else raise "bug in scan_mixin #{node.inspect}"
+    if !mixin.is_a?(Space) || mixin.type != :module
+      raise "mixin target #{path.inspect} #{name} is not a module"
+    else
+      case node.children[1]
+        when :include then space.insert_mixin mixin
+        when :extend then space.insert_static_mixin mixin 
+        else raise "bug in scan_mixin #{node.inspect}"
+      end
     end
   end
   nil
@@ -307,10 +323,8 @@ def scan_casgn space, gem, node
 end
 
 def scan_private space, node
-puts "SCAN PRIVATE #{node.inspect}"
   if node.children[2]
     name = node.children[2].children[0]
-puts "name = #{name}"
     if space[name]
       if space[name].is_a?(MethDef)
         space[name].internal = true
@@ -362,7 +376,7 @@ def scan_node space, gem, node
     when :send
       if node.children[1] == :require
         link = read_require node
-        if !$files_scanned[link.path]
+        if link.path && !$files_scanned[link.path]
           scan_file link.path, link.gem
         end
       elsif node.children[1] == :include || node.children[1] == :extend
@@ -375,17 +389,26 @@ def scan_node space, gem, node
     when :def
       scan_method space, gem, node
     when :defs
-      scan_method space, gem, node
+      begin
+        scan_method space, gem, node
+      rescue UnknownDefs
+        puts "IGNORING dynamicy defs"
+      end
     else
       puts "IGNORING NODE #{node.type}"
   end
 end
 
 def scan_file filepath, gem
+  puts "scanfile #{filepath}"
   $files_scanned[filepath] = true
+  if filepath =~ /\.so$/
+    puts "avoiding scanning a .so file"
+    return
+  end
   source = IO.read filepath
   ast = Parser::CurrentRuby.parse source
-  puts "scanfile #{filepath} #{ast.inspect}"
+#  puts "scanfile #{filepath} #{ast.inspect}"
   scan_node $top_level, gem, ast
   puts ''
 end

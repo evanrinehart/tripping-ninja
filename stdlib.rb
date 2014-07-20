@@ -16,6 +16,18 @@ class StdLib
 
     exception = put_c :Exception
     put_c :StandardError, exception
+    put_m :Mutex_m
+    put_m :Enumerable
+  end
+
+  def self.std_requires
+    %w{
+      optparse
+      thread
+      mutex_m
+      rbconfig
+      pathname
+    }
   end
 
   def put_c name, superclass=nil

@@ -115,7 +115,7 @@ class Space
   end
 
   def mixin?
-    type == :module && methdefs.any?{|x| !x.static}
+    type == :module && stdlib || methdefs.any?{|x| !x.static}
   end
 
   def datatype?
