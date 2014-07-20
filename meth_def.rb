@@ -1,38 +1,36 @@
 class MethDef
 
-  attr_reader :name
+  attr_accessor :name
   attr_reader :body
   attr_reader :args
   attr_reader :star
   attr_reader :static
-  attr_reader :origin # space path
+  attr_reader :origin # gem
+  attr_accessor :internal
+  attr_reader :ctor
 
-  def initialize(ast:, origin:)
-    if ast.type == :def
-      @name = ast.children[0]
-      @args = ast.children[1].children
-      @star = false
-      @body = ast.children[2]
-      @static = false
-      @origin = origin
-    elsif ast.type == :defs
-      @name = ast.children[1]
-      @args = ast.children[2].children
-      if @args.count > 0
-        @star = @args.last.type == :restarg
-      else
-        @star = false
-      end
-      @body = ast.children[3]
-      if ast.children[0].type == :self
-        @static = true
-      else
-        raise "unknown syntax: defs #{ast.children[0].type}"
-      end
-      @origin = origin
-    elsif ast.type == :defs
+  attr_reader :stdlib
+
+  def initialize(
+    name:, args:, star:false, body:,
+    static:false, origin:nil, internal:false, stdlib:false
+  )
+    @name = name
+    @args = args
+    @star = star
+    @body = body
+    @static = static
+    @origin = origin
+    @internal = internal
+    @stdlib = stdlib
+    @ctor = name == :initialize
+  end
+
+  def show_name
+    if ctor
+      :new
     else
-      raise "unknown syntax: #{ast.type}"
+      name
     end
   end
 
@@ -46,6 +44,37 @@ class MethDef
 
   def inspect
     "#{name}(#{size})"
+  end
+
+  def alpha
+    "α"
+  end
+
+  def beta
+    "β"
+  end
+
+  def arrow
+    "→"
+  end
+
+  def type_sig
+    if ctor && args.count > 0
+      "#{Array.new(args.count, beta).join(', ')} #{arrow} #{alpha}"
+    elsif ctor && args.count == 0
+      "#{alpha}"
+    elsif static && args.count > 0
+      "#{Array.new(args.count, beta).join(', ')} #{arrow} #{beta}"
+    elsif static
+      "#{beta}"
+    else
+      "#{([alpha]+Array.new(args.count, beta)).join(', ')} #{arrow} #{beta}"
+    end
+  end
+
+  def descriptor
+#    "#{static ? "self." : ""}#{name}(#{size})#{internal ? " (internal)" : ""}"
+    "#{show_name} : #{type_sig}"
   end
 
 end

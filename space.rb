@@ -2,8 +2,12 @@ class Space
 
   attr_reader :path
   attr_reader :type
+  attr_reader :names
+  attr_reader :superclass
+  attr_reader :stdlib
+  attr_accessor :internal_mode
 
-  def initialize(path:, gem:, type:, superclass:nil)
+  def initialize(path:, gem:, type:, superclass:nil, stdlib:false)
     @spec = gem
     @names = {}
     @path = path
@@ -11,9 +15,11 @@ class Space
       raise "bad space type: #{type}"
     end
     @type = type
-    @superclass = superclass # full name
+    @superclass = superclass # space
     @mixins = [] # array of full names
     @static_mixins = []
+    @internal_mode = false
+    @stdlib = stdlib
   end
 
   def gem
@@ -44,6 +50,25 @@ class Space
       return nil if ptr.nil?
     end
     ptr
+  end
+
+  def lookup_inherited name
+    here = @names[name]
+    if here
+      here
+    else
+      @mixins.each do |mixin|
+        there = mixin.lookup_inherited(name)
+        return there if there
+      end
+
+      if @superclass
+        there = @superclass.lookup_inherited(name)
+        return there if there
+      end
+
+      nil
+    end
   end
 
   def insert name, value
@@ -79,5 +104,35 @@ class Space
     end
   end
 
+  def methdefs
+    @names.values.select do |item|
+      item.is_a?(MethDef)
+    end
+  end
+
+  def namespace?
+    methdefs.all?{|x| x.static}
+  end
+
+  def mixin?
+    type == :module && methdefs.any?{|x| !x.static}
+  end
+
+  def datatype?
+    type == :class
+  end
+
+  def space_descriptor
+    full = path.join('::')
+    if type==:class
+      "class #{full}"
+    elsif mixin?
+      "mixin #{full}"
+    elsif namespace?
+      "namespace #{full}"
+    else
+      full
+    end
+  end
 
 end
