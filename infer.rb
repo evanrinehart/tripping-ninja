@@ -1,6 +1,6 @@
 require 'ostruct'
 
-require 'working_set'
+require './working_set'
 
 # compute the types of all names of a source ast
 # requires a name context for the stdlib and or required files

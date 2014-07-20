@@ -16,6 +16,7 @@ class StdLib
 
     exception = put_c :Exception
     put_c :StandardError, exception
+    put_c :OpenStruct
     put_m :Mutex_m
     put_m :Enumerable
   end
@@ -27,6 +28,7 @@ class StdLib
       mutex_m
       rbconfig
       pathname
+      ostruct
     }
   end
 

@@ -42,7 +42,7 @@ class Scanner
       root_file_path = "#{spec.gem_dir}/lib/#{gem}.rb"
       scan_file root_file_path, spec
     elsif file
-      raise "fixme #{file.inspect}"
+      scan_file file, nil
     else
       raise "bug"
     end
@@ -257,24 +257,35 @@ class Scanner
     raw = node.children[2]
     if raw.type == :str
       arg = raw.children[0]
+
       if StdLib.std_requires.include?(arg)
         return OpenStruct.new(
           :arg => arg,
           :stdlib => true
         )
       end
-      spec = Gem::Specification.find_by_path(arg)
-      raise "gem #{arg} not found" if spec.nil?
-      path_glob = spec.lib_dirs_glob
-      paths = Dir["#{path_glob}/#{arg}.rb"]
-      raise "ambiguous require #{arg}" if paths.length > 1
-      raise "file not found #{arg}" if paths.length == 0
-      
-      OpenStruct.new(
-        :arg => arg,
-        :gem => spec,
-        :path => paths.first
-      )
+
+      if File.exists? "#{arg}.rb"
+        OpenStruct.new(
+          :arg => arg,
+          :path => "#{arg}.rb",
+          :gem => nil
+        )
+      else
+        spec = Gem::Specification.find_by_path(arg)
+        raise "gem for #{arg} not found" if spec.nil?
+        path_glob = spec.lib_dirs_glob
+        paths = Dir["#{path_glob}/#{arg}.rb"]
+        raise "ambiguous require #{arg}" if paths.length > 1
+        raise "file not found #{arg}" if paths.length == 0
+        
+        OpenStruct.new(
+          :arg => arg,
+          :gem => spec,
+          :path => paths.first
+        )
+      end
+
     else
       raise "can't read this require #{node.inspect}"
     end
