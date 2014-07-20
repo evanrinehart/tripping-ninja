@@ -1,13 +1,16 @@
 class Space
 
   attr_reader :path
-  attr_reader :is_module
+  attr_reader :type
 
-  def initialize(path:, spec:, is_module:, superclass:nil)
-    @spec = spec
+  def initialize(path:, gem:, type:, superclass:nil)
+    @spec = gem
     @names = {}
     @path = path
-    @is_module = is_module
+    if ![:class, :module, :top_level].include? type
+      raise "bad space type: #{type}"
+    end
+    @type = type
     @superclass = superclass # full name
     @mixins = [] # array of full names
     @static_mixins = []
@@ -21,8 +24,26 @@ class Space
     end
   end
 
+  def name
+    if path.empty?
+      :''
+    else
+      path.last
+    end
+  end
+
   def [] name
     @names[name]
+  end
+
+  def lookup target
+    raise "empty path" if target.empty?
+    ptr = self
+    target.each do |name|
+      ptr = ptr[name]
+      return nil if ptr.nil?
+    end
+    ptr
   end
 
   def insert name, value
