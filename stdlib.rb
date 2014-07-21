@@ -1,3 +1,5 @@
+require './args'
+
 class StdLib
 
   attr_reader :object_class
@@ -15,7 +17,8 @@ class StdLib
     objmeth :dup, 0
 
     exception = put_c :Exception
-    put_c :StandardError, exception
+    stderror = put_c :StandardError, exception
+    put_c :RuntimeError, stderror
     put_c :OpenStruct
     put_m :Mutex_m
     put_m :Enumerable
@@ -29,6 +32,9 @@ class StdLib
       rbconfig
       pathname
       ostruct
+      optparse/time
+      timeout
+      etc
     }
   end
 
@@ -54,7 +60,7 @@ class StdLib
   def objmeth name, count
     @object_class.insert name, MethDef.new(
       name: name,
-      args: Array.new(count),
+      args: Args.new,
       body: nil,
       stdlib: true
     )

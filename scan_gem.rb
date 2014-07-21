@@ -5,7 +5,14 @@ require './scanner'
 
 name = ARGV[0]
 
-spaces = Scanner.new.scan :gem => name
+begin
+  spaces = Scanner.new.scan :gem => name
+rescue Scanner::ScannerError => e
+  e.errors.each do |error|
+    puts "#{error.location}: #{error.message}"
+  end
+  exit
+end
 
 puts "GLOBAL SPACES"
 ap spaces.values

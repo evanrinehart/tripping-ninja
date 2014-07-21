@@ -6,6 +6,7 @@ require './meth_def'
 require './stdlib'
 require './constant'
 require './code_pointer'
+require './args'
 
 # the scanner recursively reads through source files and
 # builds a model of the names it finds and the namespaces
@@ -178,39 +179,79 @@ class Scanner
     end
   end
 
+  def read_args nodes
+=begin
+[(kwarg :a), (kwoptarg :b
+  (int 0))]
+
+SCAN SPACE (class ...)
+[(arg :a), (optarg :b
+  (nil)), (restarg :c), (kwarg :d), (blockarg :e)]
+=end
+
+    restarg = nil
+    args = []
+    block = nil
+    kwargs = {}
+    kwoptargs = {}
+
+    nodes.each do |node|
+      case node.type
+        when :arg then args.push OpenStruct.new(
+          name: node.children[0],
+          body: nil
+        )
+        when :optarg then args.push OpenStruct.new(
+          name: node.children[0],
+          body: node.children[1]
+        )
+        when :restarg then restarg = node.children[0]
+        when :blockarg then block = node.children[0]
+        when :kwarg then kwargs[node.children[0]] = nil
+        when :kwoptarg then kwoptargs[node.children[0]] = node.children[1]
+        else raise "arg #{node.type.inspect} ?"
+      end
+    end
+
+    foo = Args.new(
+      args: args,
+      restarg: restarg,
+      kwargs: kwargs,
+      kwoptargs: kwoptargs,
+      block: block
+    )
+
+    foo
+  end
+
 
   def scan_method space, code
     node = code.node
     if node.type == :def
+      args = read_args node.children[1].children
       meth = MethDef.new(
         name: node.children[0],
-        args: node.children[1].children,
-        star: false, # huh
+        args: args,
         body: node.children[2],
-        static: false,
         origin: code.gem,
         internal: space.internal_mode
       )
       space.insert meth.name, meth
     elsif node.type == :defs
       name = node.children[1]
-      args = node.children[2].children
-      if args.count > 0
-        star = args.last.type == :restarg
-      else
-        star = false
-      end
+      args = read_args node.children[2].children
       body = node.children[3]
       if node.children[0].type == :self
         static = true
       else
-        soft_crash code, "unknown syntax: defs #{node.children[0].type}"
+        puts "IGNORING DEFS #{node.children[0].inspect}"
+#        soft_crash code, "unknown syntax: defs #{node.children[0].type}"
+        return
       end
 
       meth = MethDef.new(
         name: name,
         args: args,
-        star: star,
         body: body,
         static: static,
         origin: code.gem,
@@ -241,6 +282,7 @@ class Scanner
     name = node.children[1]
     ptr = node.children[0]
     while !ptr.nil?
+      break if ptr.type == :cbase
       accum.unshift ptr.children[1]
       ptr = ptr.children[0]
     end
@@ -435,11 +477,7 @@ class Scanner
         when :def
           scan_method space, code
         when :defs
-          begin
-            scan_method space, code
-          rescue UnknownDefs
-            puts "IGNORING dynamicy defs"
-          end
+          scan_method space, code
         else
           puts "IGNORING NODE #{node.type}"
       end
