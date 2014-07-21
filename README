@@ -1,1 +1,104 @@
 Ruby static analyzer.
+
+class Object
+  dup : α → β
+  == : α, arg1:β → β
+class Exception
+class StandardError
+class RuntimeError
+class OpenStruct
+mixin Mutex_m
+mixin Enumerable
+namespace Parser
+class Space
+  path : α → β
+  type : α → β
+  names : α → β
+  superclass : α → β
+  stdlib : α → β
+  new : path:β, gem:β, type:β, superclass?:β, stdlib?:β → α
+  gem : α → β
+  name : α → β
+  [] : α, name:β → β
+  lookup : α, target:β → β
+  lookup_inherited : α, name:β → β
+  insert : α, name:β, value:β → β
+  insert_mixin : α, path:β → β
+  insert_static_mixin : α, path:β → β
+  inspect : α → β
+  to_s : α → β
+  show_frag : α, k:β, v:β → β
+  methdefs : α → β
+  namespace? : α → β
+  mixin? : α → β
+  datatype? : α → β
+  space_descriptor : α → β
+class MethDef
+  body : α → β
+  args : α → β
+  star : α → β
+  static : α → β
+  origin : α → β
+  ctor : α → β
+  stdlib : α → β
+  new : name:β, args:β, body:β, star?:β, static?:β, origin?:β, internal?:β, stdlib?:β → α
+  show_name : α → β
+  size : α → β
+  inspect : α → β
+  alpha : α → β
+  beta : α → β
+  pi : α → β
+  arrow : α → β
+  type_sig : α, names?:β → β
+  detailed_sig : α → β
+  named_type_sig : α → β
+  descriptor : α → β
+class Args
+  args : α → β
+  restarg : α → β
+  kwargs : α → β
+  kwoptargs : α → β
+  block : α → β
+  new : args?:β, restarg?:β, kwargs?:β, kwoptargs?:β, block?:β → α
+  count : α → β
+class StdLib
+  object_class : α → β
+  new : α
+  std_requires : β
+  put_c : α, name:β, superclass?:β → β
+  put_m : α, name:β → β
+  objmeth : α, name:β, count:β → β
+  spaces : α → β
+class Constant
+  name : α → β
+  new : name:β, ast:β → α
+class CodePointer
+  file : α → β
+  line : α → β
+  node : α → β
+  gem : α → β
+  new : file:β, gem:β, node:β → α
+  with_node : α, new_node:β → β
+class Scanner
+  new : α
+  soft_crash : α, code:β, message:β → β
+  scan : α, gem?:β, file?:β → β
+  scan_file : α, filepath:β, gem:β → β
+  lookup_path : α, start_space:β, path:β → β
+  scan_space : α, space:β, code:β → β
+  read_args : α, nodes:β → β
+  scan_method : α, space:β, code:β → β
+  read_space_header : α, node:β → β
+  read_qualified_name : α, node:β → β
+  read_require : α, code:β → β
+  scan_mixin : α, space:β, code:β → β
+  read_asgn_lhs : α, node:β → β
+  scan_casgn : α, space:β, code:β → β
+  scan_private : α, space:β, code:β → β
+  scan_alias : α, space:β, code:β → β
+  scan_attr_reader : α, space:β, code:β → β
+  scan_node : α, space:β, code:β → β
+class Scanner::ScannerError
+  new : errors:β → α
+  errors : α → β
+class Scanner::SoftCrash
