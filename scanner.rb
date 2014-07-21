@@ -373,7 +373,6 @@ SCAN SPACE (class ...)
 
   def scan_casgn space, code
     node = code.node
-    puts "SCAN CASGN #{node.inspect}"
     target, name = read_asgn_lhs node
     ast = node.children[2]
 
@@ -445,6 +444,16 @@ SCAN SPACE (class ...)
     end
   end
 
+  def scan_attr_reader space, code
+    name = code.node.children[2].children[0]
+    meth = MethDef.new(
+      name: name,
+      body: "the body of an attr_reader method",
+      args: Args.new
+    )
+    space.insert name, meth
+  end
+
   def scan_node space, code
     node = code.node
     begin
@@ -469,8 +478,10 @@ SCAN SPACE (class ...)
             end
           elsif node.children[1] == :include || node.children[1] == :extend
             scan_mixin space, code
-          elsif node.children[1] == :private
+          elsif node.children[1] == :private || node.children[1] == :protected
             scan_private space, code
+          elsif node.children[1] == :attr_reader
+            scan_attr_reader space, code
           else
             puts "IGNORING SEND #{node.inspect}"
           end

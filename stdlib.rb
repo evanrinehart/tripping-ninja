@@ -15,6 +15,7 @@ class StdLib
     @top_level[[:Object]] = @object_class
 
     objmeth :dup, 0
+    objmeth :==, 1
 
     exception = put_c :Exception
     stderror = put_c :StandardError, exception
@@ -35,6 +36,11 @@ class StdLib
       optparse/time
       timeout
       etc
+      fileutils
+      rubygems
+      rubygems/specification
+      rubygems/config_file
+      set
     }
   end
 
@@ -58,9 +64,16 @@ class StdLib
   end
 
   def objmeth name, count
+    args = (1..count).map do |i|
+      OpenStruct.new(
+        name: "arg#{i}",
+        body: nil
+      )
+    end
+
     @object_class.insert name, MethDef.new(
       name: name,
-      args: Args.new,
+      args: Args.new(args: args),
       body: nil,
       stdlib: true
     )
